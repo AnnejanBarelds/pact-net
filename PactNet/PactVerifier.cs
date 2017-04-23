@@ -1,5 +1,5 @@
 ﻿using System;
-using System.IO.Abstractions;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using Newtonsoft.Json;
@@ -11,12 +11,14 @@ using PactNet.Mocks.MockHttpService.Validators;
 using PactNet.Models;
 using PactNet.Reporters;
 using System.Text;
+using Thinktecture.IO;
+using Thinktecture.IO.Adapters;
 
 namespace PactNet
 {
     public class PactVerifier : IPactVerifier
     {
-        private readonly IFileSystem _fileSystem;
+        private readonly IFile _fileAdapter;
         private readonly Func<IHttpRequestSender, IReporter, PactVerifierConfig, IProviderServiceValidator> _providerServiceValidatorFactory;
         private readonly HttpClient _httpClient;
         private readonly PactVerifierConfig _config;
@@ -32,12 +34,12 @@ namespace PactNet
         internal PactVerifier(
             Action setUp, 
             Action tearDown,
-            IFileSystem fileSystem,
+            IFile fileAdapter,
             Func<IHttpRequestSender, IReporter, PactVerifierConfig, IProviderServiceValidator> providerServiceValidatorFactory, 
             HttpClient httpClient,
             PactVerifierConfig config)
         {
-            _fileSystem = fileSystem;
+            _fileAdapter = fileAdapter;
             _providerServiceValidatorFactory = providerServiceValidatorFactory;
             _httpClient = httpClient;
             _config = config ?? new PactVerifierConfig();
@@ -56,7 +58,7 @@ namespace PactNet
             : this(
             setUp, 
             tearDown,
-            new FileSystem(),
+            new FileAdapter(),
             (httpRequestSender, reporter, verifierConfig) => new ProviderServiceValidator(httpRequestSender, reporter, verifierConfig),
             new HttpClient(),
             config)
@@ -203,7 +205,7 @@ namespace PactNet
                 }
                 else //Assume it's a file uri, and we will just throw if it does not exist
                 {
-                    pactFileJson = _fileSystem.File.ReadAllText(PactFileUri);
+                    pactFileJson = _fileAdapter.ReadAllText(PactFileUri);
                 }
 
                 pactFile = JsonConvert.DeserializeObject<ProviderServicePactFile>(pactFileJson);
@@ -246,8 +248,8 @@ namespace PactNet
 
         private static bool IsWebUri(string uri)
         {
-            return uri.StartsWith("http://", StringComparison.InvariantCultureIgnoreCase) ||
-                   uri.StartsWith("https://", StringComparison.InvariantCultureIgnoreCase);
+            return uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                   uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void Dispose(IDisposable disposable)

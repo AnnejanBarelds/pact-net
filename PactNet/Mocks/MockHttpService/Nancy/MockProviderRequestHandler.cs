@@ -1,10 +1,11 @@
 ﻿using System;
-using Nancy;
 using Newtonsoft.Json;
 using PactNet.Configuration.Json;
 using PactNet.Logging;
 using PactNet.Mocks.MockHttpService.Mappers;
 using PactNet.Mocks.MockHttpService.Models;
+using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
 
 namespace PactNet.Mocks.MockHttpService.Nancy
 {
@@ -27,12 +28,12 @@ namespace PactNet.Mocks.MockHttpService.Nancy
             _log = log;
         }
 
-        public Response Handle(NancyContext context)
+        public async Task Handle(HttpContext context)
         {
-            return HandlePactRequest(context);
+            await HandlePactRequest(context);
         }
 
-        private Response HandlePactRequest(NancyContext context)
+        private async Task HandlePactRequest(HttpContext context)
         {
             var actualRequest = _requestMapper.Convert(context.Request);
             var actualRequestMethod = actualRequest.Method.ToString().ToUpperInvariant();
@@ -57,8 +58,10 @@ namespace PactNet.Mocks.MockHttpService.Nancy
                 _mockProviderRepository.AddHandledRequest(new HandledRequest(actualRequest, null));
                 throw;
             }
-            
-            return _responseMapper.Convert(matchingInteraction.Response);
+
+            // TODO: Find a better way to follow the mapper pattern in use here
+            //return _responseMapper.Convert(matchingInteraction.Response);
+            await _responseMapper.Convert(context, matchingInteraction.Response);
         }
     }
 }

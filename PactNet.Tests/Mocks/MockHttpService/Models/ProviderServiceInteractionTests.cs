@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using Nancy;
 using PactNet.Mocks.MockHttpService.Models;
 using Xunit;
+using Microsoft.AspNetCore.Http;
 
 namespace PactNet.Tests.Mocks.MockHttpService.Models
 {
@@ -29,7 +29,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
                 },
                 Response = new ProviderServiceResponse
                 {
-                    Status = (int)HttpStatusCode.ProxyAuthenticationRequired,
+                    Status = StatusCodes.Status407ProxyAuthenticationRequired,
                     Body = new
                     {
                         yep = "it worked"

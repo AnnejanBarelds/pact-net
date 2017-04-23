@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 using PactNet.Mocks.MockHttpService.Models;
+using System.Dynamic;
 
 namespace PactNet.Mocks.MockHttpService.Mappers
 {
@@ -26,7 +27,7 @@ namespace PactNet.Mocks.MockHttpService.Mappers
         private MediaTypeHeaderValue ParseContentTypeHeader(IDictionary<string, string> headers)
         {
             string contentType = headers?
-                .Where(hdr => hdr.Key.Equals("Content-Type", StringComparison.InvariantCultureIgnoreCase))
+                .Where(hdr => hdr.Key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
                 .Select(hdr => hdr.Value)
                 .FirstOrDefault();
 

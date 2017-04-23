@@ -1,0 +1,12 @@
+{
+  "provider": {
+    "name": "MyApi"
+  },
+  "consumer": {
+    "name": "IntegrationTests"
+  },
+  "interactions": [],
+  "metadata": {
+    "pactSpecificationVersion": "1.1.0"
+  }
+}

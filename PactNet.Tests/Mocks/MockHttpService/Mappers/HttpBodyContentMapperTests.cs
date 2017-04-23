@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using PactNet.Mocks.MockHttpService.Mappers;
 using Xunit;
+using PactNet.Mocks.MockHttpService.Models;
 
 namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 {

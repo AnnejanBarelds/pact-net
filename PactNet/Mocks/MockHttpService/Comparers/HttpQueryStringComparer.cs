@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Nancy.Helpers;
 using PactNet.Comparers;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace PactNet.Mocks.MockHttpService.Comparers
 {
@@ -25,8 +25,8 @@ namespace PactNet.Mocks.MockHttpService.Comparers
                 return result;
             }
 
-            var expectedQueryItems = HttpUtility.ParseQueryString(normalisedExpectedQuery);
-            var actualQueryItems = HttpUtility.ParseQueryString(normalisedActualQuery);
+            var expectedQueryItems = QueryHelpers.ParseQuery(normalisedExpectedQuery);
+            var actualQueryItems = QueryHelpers.ParseQuery(normalisedActualQuery);
 
             if (expectedQueryItems.Count != actualQueryItems.Count)
             {
@@ -34,16 +34,16 @@ namespace PactNet.Mocks.MockHttpService.Comparers
                 return result;
             }
 
-            foreach (string expectedKey in expectedQueryItems)
+            foreach (var item in expectedQueryItems)
             {
-                if (!actualQueryItems.AllKeys.Contains(expectedKey))
+                if (!actualQueryItems.Keys.Contains(item.Key))
                 {
                     result.RecordFailure(new DiffComparisonFailure(normalisedExpectedQuery, normalisedActualQuery));
                     return result;
                 }
 
-                var expectedValue = expectedQueryItems[expectedKey];
-                var actualValue = actualQueryItems[expectedKey];
+                var expectedValue = expectedQueryItems[item.Key];
+                var actualValue = actualQueryItems[item.Key];
 
                 if (expectedValue != actualValue)
                 {

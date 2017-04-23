@@ -1,8 +1,9 @@
 using System;
 using System.IO;
-using System.IO.Abstractions;
 using System.Linq;
 using System.Text;
+using Thinktecture.IO;
+using Thinktecture.IO.Adapters;
 
 namespace PactNet.Infrastructure.Logging
 {
@@ -11,18 +12,18 @@ namespace PactNet.Infrastructure.Logging
         public string LogPath { get; set; }
 
         private readonly object _sync = new object();
-        private readonly StreamWriter _writer;
+        private readonly IStreamWriter _writer;
 
-        internal LocalRollingLogFileMessageHandler(IFileSystem fileSystem, string logFilePath)
+        internal LocalRollingLogFileMessageHandler(IFile fileAdapter, string logFilePath)
         {
             LogPath = logFilePath;
             TryCreateDirectory(logFilePath);
-            var file = fileSystem.File.Open(logFilePath, FileMode.Append, FileAccess.Write, FileShare.Read);
-            _writer = new StreamWriter(file, Encoding.UTF8);
+            var file = fileAdapter.Open(logFilePath, FileMode.Append, FileAccess.Write, FileShare.Read);
+            _writer = new StreamWriterAdapter(file, Encoding.UTF8);
         }
 
         internal LocalRollingLogFileMessageHandler(string logFilePath)
-            : this(new FileSystem(), logFilePath)
+            : this(new FileAdapter(), logFilePath)
         {
         }
 

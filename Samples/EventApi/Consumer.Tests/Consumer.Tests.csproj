@@ -63,16 +63,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\PactNet\PactNet.csproj">
-      <Project>{7024b146-2cb2-4de2-b079-58cf9c44640b}</Project>
-      <Name>PactNet</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Consumer\Consumer.csproj">
-      <Project>{4df20682-f8dd-4271-86ca-17fa2b3d8d29}</Project>
-      <Name>Consumer</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

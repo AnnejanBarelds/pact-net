@@ -46,3 +46,8 @@ Build/PactNet*.nupkg
 /Build/coverage
 [Ll]ogs
 *.DotSettings
+/PactNet.Tests/pacts
+/PactNet.Tests/pacts/failureintegrationtests-myapi.json
+/PactNet.Tests/pacts/integrationtests-myapi.json
+/PactNet.Tests/pacts/integrationtests-myapi.json
+/PactNet.Tests/pacts

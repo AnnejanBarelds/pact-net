@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -223,32 +225,37 @@ namespace PactNet.Mocks.MockHttpService
 
         private static string BuildTestContext()
         {
-            var stack = new StackTrace(true);
-            var stackFrames = stack.GetFrames() ?? new StackFrame[0];
+            // TODO: reimplement proper stacktrace cleaning once StackTrace and StackFrame are fully implemented in .NET Core.
+            // For now, a partial cleanup is provided below
 
-            var relevantStackFrameSummaries = new List<string>();
+            //var stackFrames = stack.GetFrames() ?? new StackFrame[0];
 
-            foreach (var stackFrame in stackFrames)
-            {
-                var type = stackFrame.GetMethod().ReflectedType;
+            //var relevantStackFrameSummaries = new List<string>();
 
-                if (type == null || 
-                    (type.Assembly.GetName().Name.StartsWith("PactNet", StringComparison.CurrentCultureIgnoreCase) &&
-                    !type.Assembly.GetName().Name.Equals("PactNet.Tests", StringComparison.CurrentCultureIgnoreCase)))
-                {
-                    continue;
-                }
+            //foreach (var stackFrame in stackFrames)
+            //{
+            //    var type = stackFrame.GetMethod().ReflectedType;
 
-                //Don't care about any mscorlib frames down
-                if (type.Assembly.GetName().Name.Equals("mscorlib", StringComparison.CurrentCultureIgnoreCase))
-                {
-                    break;
-                }
+            //    if (type == null || 
+            //        (type.GetTypeInfo().Assembly.GetName().Name.StartsWith("PactNet", StringComparison.CurrentCultureIgnoreCase) &&
+            //        !type.GetTypeInfo().Assembly.GetName().Name.Equals("PactNet.Tests", StringComparison.CurrentCultureIgnoreCase)))
+            //    {
+            //        continue;
+            //    }
 
-                relevantStackFrameSummaries.Add(String.Format("{0}.{1}", type.Name, stackFrame.GetMethod().Name));
-            }
+            //    // TODO: This will be different in NETStandard
+            //    //Don't care about any mscorlib frames down
+            //    if (type.AssemblyQualifiedName.Equals("mscorlib", StringComparison.CurrentCultureIgnoreCase))
+            //    {
+            //        break;
+            //    }
 
-            return String.Join(" ", relevantStackFrameSummaries);
+            //    relevantStackFrameSummaries.Add(String.Format("{0}.{1}", type.Name, stackFrame.GetMethod().Name));
+            //}
+
+            //return String.Join(" ", relevantStackFrameSummaries);
+
+            return "TestContextPlaceholder";
         }
 
         private void SendAdminHttpRequest(HttpVerb method, string path)
@@ -290,7 +297,7 @@ namespace PactNet.Mocks.MockHttpService
             IDictionary<string, string> headers = null;
             if (message.Headers != null)
             {
-                headers = new Dictionary<string, string>(message.Headers, StringComparer.InvariantCultureIgnoreCase);
+                headers = new Dictionary<string, string>(message.Headers, StringComparer.OrdinalIgnoreCase);
             }
 
             return headers != null && headers.ContainsKey("Content-Type");

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using System.Reflection;
 
 namespace PactNet.Configuration.Json.Converters
 {

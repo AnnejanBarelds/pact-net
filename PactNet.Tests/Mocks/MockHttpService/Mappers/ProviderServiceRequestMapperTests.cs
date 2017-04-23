@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Http.Headers;
 using System.Text;
-using Nancy;
-using Nancy.IO;
 using NSubstitute;
 using PactNet.Mocks.MockHttpService.Mappers;
 using PactNet.Mocks.MockHttpService.Models;
 using Xunit;
+using Microsoft.AspNetCore.Http;
+using System.Net;
+using System.Linq;
 
 namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 {
@@ -17,6 +18,26 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
         private IProviderServiceRequestMapper GetSubject()
         {
             return new ProviderServiceRequestMapper();
+        }
+
+        private HttpContext GetRequestContext(string method, string path, string protocol, string host = null, Stream body = null, IDictionary<string, IEnumerable<string>> headers = null)//, string ip = null, X509Certificate certificate = null, string protocolVersion = null)
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Method = method;
+            if (!String.IsNullOrEmpty(host))
+            {
+                context.Request.Host = new HostString(host);
+            }
+            context.Request.Path = path;
+            context.Request.Protocol = protocol;
+            context.Request.Body = body;
+            if (headers != null)
+            {
+                headers.ToList().ForEach(header => context.Request.Headers.Add(header.Key, new Microsoft.Extensions.Primitives.StringValues(header.Value.ToArray())));
+            }
+
+            context.Response.Body = new MemoryStream();
+            return context;
         }
 
         [Fact]
@@ -33,7 +54,8 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
         public void Convert_WithMethod_CallsHttpVerbMapperAndSetsHttpMethod()
         {
             const HttpVerb httpVerb = HttpVerb.Get;
-            var request = new Request("GET", "/events", "Http");
+            
+            var context = GetRequestContext("GET", "/events", "Http");
 
             var mockHttpVerbMapper = Substitute.For<IHttpVerbMapper>();
             var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
@@ -41,7 +63,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 
             var mapper = new ProviderServiceRequestMapper(mockHttpVerbMapper, mockHttpBodyContentMapper);
 
-            var result = mapper.Convert(request);
+            var result = mapper.Convert(context.Request);
 
             Assert.Equal(httpVerb, result.Method);
             mockHttpVerbMapper.Received(1).Convert("GET");
@@ -52,7 +74,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
         {
             const string path = "/events";
             const HttpVerb httpVerb = HttpVerb.Get;
-            var request = new Request("GET", path, "Http");
+            var context = GetRequestContext("GET", path, "Http");
 
             var mockHttpVerbMapper = Substitute.For<IHttpVerbMapper>();
             var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
@@ -60,7 +82,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 
             var mapper = new ProviderServiceRequestMapper(mockHttpVerbMapper, mockHttpBodyContentMapper);
 
-            var result = mapper.Convert(request);
+            var result = mapper.Convert(context.Request);
 
             Assert.Equal(path, result.Path);
         }
@@ -71,7 +93,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             const string path = "/events";
 
             const HttpVerb httpVerb = HttpVerb.Get;
-            var request = new Request("GET", path, "Http");
+            var context = GetRequestContext("GET", path, "Http");
 
             var mockHttpVerbMapper = Substitute.For<IHttpVerbMapper>();
             var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
@@ -79,9 +101,9 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 
             var mapper = new ProviderServiceRequestMapper(mockHttpVerbMapper, mockHttpBodyContentMapper);
 
-            var result = mapper.Convert(request);
+            var result = mapper.Convert(context.Request);
 
-            Assert.Null(result.Query);
+            Assert.Equal(string.Empty, result.Query);
         }
 
         [Fact]
@@ -91,8 +113,8 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             const string query = "test=2&test2=hello";
             const HttpVerb httpVerb = HttpVerb.Get;
             var request = GetPreCannedRequest();
-            request.Url.Path = path;
-            request.Url.Query = "?" + query;
+
+            request.QueryString = new QueryString("?" + query);
 
             var mockHttpVerbMapper = Substitute.For<IHttpVerbMapper>();
             var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
@@ -143,14 +165,14 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             var mockHttpVerbMapper = Substitute.For<IHttpVerbMapper>();
             var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
             mockHttpVerbMapper.Convert("GET").Returns(HttpVerb.Get);
-            mockHttpBodyContentMapper.Convert(content: Arg.Any<byte[]>(), headers: null).Returns(httpBodyContent);
+            mockHttpBodyContentMapper.Convert(content: Arg.Any<byte[]>(), headers: Arg.Any<IDictionary<string, string>>()).Returns(httpBodyContent);
 
             var mapper = new ProviderServiceRequestMapper(mockHttpVerbMapper, mockHttpBodyContentMapper);
 
             var result = mapper.Convert(request);
 
             Assert.Equal(content, result.Body);
-            mockHttpBodyContentMapper.Received(1).Convert(content: Arg.Any<byte[]>(), headers: null);
+            mockHttpBodyContentMapper.Received(1).Convert(content: Arg.Any<byte[]>(), headers: Arg.Any<IDictionary<string, string>>());
         }
 
         [Fact]
@@ -184,36 +206,19 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             mockHttpBodyContentMapper.Received(1).Convert(content: Arg.Any<byte[]>(), headers: Arg.Any<IDictionary<string, string>>());
         }
 
-        private Request GetPreCannedRequest(IDictionary<string, IEnumerable<string>> headers = null, string content = null)
+        private HttpRequest GetPreCannedRequest(IDictionary<string, IEnumerable<string>> headers = null, string content = null)
         {
-            RequestStream requestStream = null;
+            MemoryStream stream = null;
 
             if (!String.IsNullOrEmpty(content))
             {
                 var contentBytes = Encoding.UTF8.GetBytes(content);
-                var stream = new MemoryStream(contentBytes);
-                requestStream = new RequestStream(stream, contentBytes.Length, true);
+                stream = new MemoryStream(contentBytes);
             }
 
-            var url = new Url
-            {
-                HostName = "localhost",
-                Scheme = "http",
-                Port = 1234,
-                Path = "/events"
-            };
+            var context = GetRequestContext("Get", "/events", "http", "localhost:1234", stream, headers);
 
-            Request request;
-            if (requestStream != null)
-            {
-                request = new Request("GET", url, headers: headers, body: requestStream);
-            }
-            else
-            {
-                request = new Request("GET", url, headers: headers);
-            }
-
-            return request;
+            return context.Request;
         }
     }
 }

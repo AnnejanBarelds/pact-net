@@ -3,10 +3,11 @@ using System.Net.Http.Headers;
 using System.Text;
 using Newtonsoft.Json;
 using PactNet.Configuration.Json;
+using System.Dynamic;
 
 namespace PactNet.Mocks.MockHttpService.Models
 {
-    internal class HttpBodyContent
+    public class HttpBodyContent
     {
         private readonly bool _contentIsBase64Encoded;
 
@@ -111,14 +112,14 @@ namespace PactNet.Mocks.MockHttpService.Models
 
         private bool IsJsonContentType()
         {
-            return ContentType.MediaType.IndexOf("application/", StringComparison.InvariantCultureIgnoreCase) == 0 &&
-                ContentType.MediaType.IndexOf("json", StringComparison.InvariantCultureIgnoreCase) > 0;
+            return ContentType.MediaType.IndexOf("application/", StringComparison.OrdinalIgnoreCase) == 0 &&
+                ContentType.MediaType.IndexOf("json", StringComparison.OrdinalIgnoreCase) > 0;
         }
 
         private bool IsBinaryContentType()
         {
-            return ContentType.MediaType.IndexOf("application/", StringComparison.InvariantCultureIgnoreCase) == 0 &&
-                ContentType.MediaType.IndexOf("octet-stream", StringComparison.InvariantCultureIgnoreCase) > 0;
+            return ContentType.MediaType.IndexOf("application/", StringComparison.OrdinalIgnoreCase) == 0 &&
+                ContentType.MediaType.IndexOf("octet-stream", StringComparison.OrdinalIgnoreCase) > 0;
         }
     }
 }

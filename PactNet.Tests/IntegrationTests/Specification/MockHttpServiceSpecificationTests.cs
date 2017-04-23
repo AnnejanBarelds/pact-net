@@ -6,11 +6,20 @@ using NSubstitute.Exceptions;
 using Newtonsoft.Json;
 using PactNet.Tests.IntegrationTests.Specification.Models;
 using Xunit;
+using System.Diagnostics;
+using Xunit.Abstractions;
 
 namespace PactNet.Tests.IntegrationTests.Specification
 {
     public class MockHttpServiceSpecificationTests
     {
+        public ITestOutputHelper _output;
+
+        public MockHttpServiceSpecificationTests(ITestOutputHelper outputHelper)
+        {
+            _output = outputHelper;
+        }
+
         [Fact]
         public void ValidateRequestSpecification()
         {
@@ -18,10 +27,10 @@ namespace PactNet.Tests.IntegrationTests.Specification
 
             if (failedTestCases.Any())
             {
-                Console.WriteLine("### FAILED ###");
+                _output.WriteLine("### FAILED ###");
                 foreach (var failedTestCase in failedTestCases)
                 {
-                    Console.WriteLine(failedTestCase);
+                    _output.WriteLine(failedTestCase);
                 }
             }
 
@@ -35,10 +44,10 @@ namespace PactNet.Tests.IntegrationTests.Specification
 
             if (failedTestCases.Any())
             {
-                Console.WriteLine("### FAILED ###");
+                _output.WriteLine("### FAILED ###");
                 foreach (var failedTestCase in failedTestCases)
                 {
-                    Console.WriteLine(failedTestCase);
+                    _output.WriteLine(failedTestCase);
                 }
             }
 
@@ -49,7 +58,7 @@ namespace PactNet.Tests.IntegrationTests.Specification
             where T : class, IVerifiable
         {
             var failedTestCases = new List<string>();
-
+            _output.WriteLine("Working dir: {0}", Directory.GetCurrentDirectory());
             if (!Directory.Exists(pathToTestCases))
             {
                 throw new InvalidOperationException(String.Format("Specification tests not found in path '{0}'. Please ensure pact-specification git submodule has been pulled (git submodule update --init).", pathToTestCases));

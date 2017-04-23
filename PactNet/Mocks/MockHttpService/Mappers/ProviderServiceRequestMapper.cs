@@ -1,8 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using Nancy;
 using PactNet.Mocks.MockHttpService.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace PactNet.Mocks.MockHttpService.Mappers
 {
@@ -25,7 +25,7 @@ namespace PactNet.Mocks.MockHttpService.Mappers
         {
         }
 
-        public ProviderServiceRequest Convert(Request from)
+        public ProviderServiceRequest Convert(HttpRequest from)
         {
             if (from == null)
             {
@@ -38,7 +38,7 @@ namespace PactNet.Mocks.MockHttpService.Mappers
             {
                 Method = httpVerb,
                 Path = from.Path,
-                Query = !String.IsNullOrEmpty(from.Url.Query) ? from.Url.Query.TrimStart('?') : null
+                Query = from.QueryString.Value.TrimStart('?')
             };
 
             if (from.Headers != null && from.Headers.Any())
@@ -47,11 +47,15 @@ namespace PactNet.Mocks.MockHttpService.Mappers
                 to.Headers = fromHeaders;
             }
 
-            if (from.Body != null && from.Body.Length > 0)
+            if (from.Body != null)
             {
-                var httpBodyContent = _httpBodyContentMapper.Convert(content: ConvertStreamToBytes(from.Body), headers: to.Headers);
+                var streamBytes = ConvertStreamToBytes(from.Body);
+                if (streamBytes.Length > 0)
+                {
+                    var httpBodyContent = _httpBodyContentMapper.Convert(content: ConvertStreamToBytes(from.Body), headers: to.Headers);
 
-                to.Body = httpBodyContent.Body;
+                    to.Body = httpBodyContent.Body;
+                }
             }
 
             return to;

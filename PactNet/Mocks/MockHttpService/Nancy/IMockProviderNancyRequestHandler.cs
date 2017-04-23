@@ -1,9 +1,10 @@
-﻿using Nancy;
+﻿using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
 
 namespace PactNet.Mocks.MockHttpService.Nancy
 {
     internal interface IMockProviderNancyRequestHandler
     {
-        Response Handle(NancyContext context);
+        Task Handle(HttpContext context);
     }
 }

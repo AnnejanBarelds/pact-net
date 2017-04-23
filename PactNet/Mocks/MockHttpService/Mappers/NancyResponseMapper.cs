@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
-using Nancy;
 using PactNet.Mocks.MockHttpService.Models;
+using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
 
 namespace PactNet.Mocks.MockHttpService.Mappers
 {
@@ -17,32 +18,26 @@ namespace PactNet.Mocks.MockHttpService.Mappers
         {
         }
 
-        public Response Convert(ProviderServiceResponse from)
+        public async Task Convert(HttpContext context, ProviderServiceResponse from)
         {
             if (from == null)
             {
-                return null;
+                return;
             }
 
-            var to = new Response
+            context.Response.StatusCode = from.Status;
+            if (from.Headers != null && from.Headers.Count > 0)
+            foreach (var header in from.Headers)
             {
-                StatusCode = (HttpStatusCode)from.Status,
-                Headers = from.Headers ?? new Dictionary<string, string>()
-            };
+                context.Response.Headers.Add(header.Key, new Microsoft.Extensions.Primitives.StringValues(header.Value));
+            }
 
             if (from.Body != null)
             {
                 HttpBodyContent bodyContent = _httpBodyContentMapper.Convert(body: from.Body, headers: from.Headers);
-                to.ContentType = bodyContent.ContentType.MediaType;
-                to.Contents = s =>
-                {
-                    byte[] bytes = bodyContent.ContentBytes;
-                    s.Write(bytes, 0, bytes.Length);
-                    s.Flush();
-                };
+                context.Response.ContentType = bodyContent.ContentType.MediaType;
+                await context.Response.WriteAsync(bodyContent.Content);
             }
-
-            return to;
         }
     }
 }

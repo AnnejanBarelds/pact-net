@@ -81,16 +81,6 @@
     <Compile Include="TokenGenerator.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Provider.Api.Web\Provider.Api.Web.csproj">
-      <Project>{e85c47d3-f985-4c1f-a598-a4aeb5740da2}</Project>
-      <Name>Provider.Api.Web</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\PactNet\PactNet.csproj">
-      <Project>{7024b146-2cb2-4de2-b079-58cf9c44640b}</Project>
-      <Name>PactNet</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>

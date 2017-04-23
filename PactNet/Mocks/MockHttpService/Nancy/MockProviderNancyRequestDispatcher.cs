@@ -3,21 +3,34 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Nancy;
-using Nancy.Routing;
 using Newtonsoft.Json;
 using PactNet.Logging;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Builder;
 
 namespace PactNet.Mocks.MockHttpService.Nancy
 {
-    internal class MockProviderNancyRequestDispatcher : IRequestDispatcher
+    internal class PactMiddleware// : IRequestDispatcher
     {
         private readonly IMockProviderRequestHandler _requestHandler;
         private readonly IMockProviderAdminRequestHandler _adminRequestHandler;
         private readonly ILog _log;
         private readonly PactConfig _pactConfig;
 
-        public MockProviderNancyRequestDispatcher(
+        public PactMiddleware(RequestDelegate next,
+    IMockProviderRequestHandler requestHandler,
+    IMockProviderAdminRequestHandler adminRequestHandler,
+    ILog log,
+    PactConfig pactConfig) : this(requestHandler, adminRequestHandler, log, pactConfig)
+        {
+            //_requestHandler = requestHandler;
+            //_adminRequestHandler = adminRequestHandler;
+            //_log = log;
+            //_pactConfig = pactConfig;
+        }
+
+        public PactMiddleware(
             IMockProviderRequestHandler requestHandler,
             IMockProviderAdminRequestHandler adminRequestHandler,
             ILog log,
@@ -29,29 +42,23 @@ namespace PactNet.Mocks.MockHttpService.Nancy
             _pactConfig = pactConfig;
         }
 
-        public Task<Response> Dispatch(NancyContext context, CancellationToken cancellationToken)
+        public async Task Invoke(HttpContext context)//, CancellationToken cancellationToken)
         {
-            var tcs = new TaskCompletionSource<Response>();
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                tcs.SetException(new OperationCanceledException());
-                return tcs.Task;
-            }
-
             if (context == null)
             {
-                tcs.SetException(new ArgumentException("context is null"));
-                return tcs.Task;
+                throw new ArgumentException("context is null");
             }
-
-            Response response;
 
             try
             {
-                response = IsAdminRequest(context.Request) ?
-                    _adminRequestHandler.Handle(context) :
-                    _requestHandler.Handle(context);
+                if (IsAdminRequest(context.Request))
+                {
+                    await _adminRequestHandler.Handle(context);
+                }
+                else
+                {
+                    await _requestHandler.Handle(context);
+                }
             }
             catch (Exception ex)
             {
@@ -64,29 +71,24 @@ namespace PactNet.Mocks.MockHttpService.Nancy
                     JsonConvert.ToString(ex.Message).Trim('"'), 
                     !String.IsNullOrEmpty(_pactConfig.LoggerName) ? LogProvider.CurrentLogProvider.ResolveLogPath(_pactConfig.LoggerName) : "logs");
 
-                response = new Response
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    ReasonPhrase = exceptionMessage,
-                    Contents = s =>
-                    {
-                        var bytes = Encoding.UTF8.GetBytes(exceptionMessage);
-                        s.Write(bytes, 0, bytes.Length);
-                        s.Flush();
-                    }
-                };
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                context.Response.HttpContext.Features.Get<IHttpResponseFeature>().ReasonPhrase = exceptionMessage;
+                await context.Response.WriteAsync(exceptionMessage);
             }
-
-            context.Response = response;
-            tcs.SetResult(context.Response);
-
-            return tcs.Task;
         }
 
-        private static bool IsAdminRequest(Request request)
+        private static bool IsAdminRequest(HttpRequest request)
         {
             return request.Headers != null &&
                    request.Headers.Any(x => x.Key == Constants.AdministrativeRequestHeaderKey);
+        }
+    }
+
+    internal static class PactMiddlewareExtensions
+    {
+        public static IApplicationBuilder UsePact(this IApplicationBuilder builder)
+        {
+            return builder.UseMiddleware<PactMiddleware>();
         }
     }
 }

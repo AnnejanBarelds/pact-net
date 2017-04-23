@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Abstractions;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using NSubstitute;
-using Nancy;
-using Nancy.IO;
 using Newtonsoft.Json;
 using PactNet.Configuration.Json;
 using PactNet.Logging;
@@ -15,19 +13,21 @@ using PactNet.Mocks.MockHttpService.Models;
 using PactNet.Mocks.MockHttpService.Nancy;
 using PactNet.Models;
 using Xunit;
+using Thinktecture.IO;
+using Microsoft.AspNetCore.Http;
 
 namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 {
     public class MockProviderAdminRequestHandlerTests
     {
         private IMockProviderRepository _mockProviderRepository;
-        private IFileSystem _mockFileSystem;
+        private IFile _mockFileAdapter;
         private ILog _mockLog;
-        
+
         private IMockProviderAdminRequestHandler GetSubject(PactConfig pactConfig = null)
         {
             _mockProviderRepository = Substitute.For<IMockProviderRepository>();
-            _mockFileSystem = Substitute.For<IFileSystem>();
+            _mockFileAdapter = Substitute.For<IFile>();
             _mockLog = Substitute.For<ILog>();
 
             _mockLog.Log(Arg.Any<LogLevel>(), Arg.Any<Func<string>>(), Arg.Any<Exception>(), Arg.Any<object[]>())
@@ -35,9 +35,29 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             return new MockProviderAdminRequestHandler(
                 _mockProviderRepository,
-                _mockFileSystem,
+                _mockFileAdapter,
                 pactConfig ?? new PactConfig(),
                 _mockLog);
+        }
+
+        private HttpContext GetRequestContext(string method, string path, string protocol, string host = null, Stream body = null, IDictionary<string, IEnumerable<string>> headers = null)//, string ip = null, X509Certificate certificate = null, string protocolVersion = null)
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Method = method;
+            if (!String.IsNullOrEmpty(host))
+            {
+                context.Request.Host = new HostString(host);
+            }
+            context.Request.Path = path;
+            context.Request.Protocol = protocol;
+            context.Request.Body = body;
+            if (headers != null)
+            {
+                headers.ToList().ForEach(header => context.Request.Headers.Add(header.Key, new Microsoft.Extensions.Primitives.StringValues(header.Value.ToArray())));
+            }
+
+            context.Response.Body = new MemoryStream();
+            return context;
         }
 
         [Fact]
@@ -49,14 +69,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 { Constants.AdministrativeRequestTestContextHeaderKey, new List<string> { testContext } }
             };
 
-            var context = new NancyContext
-            {
-                Request = new Request("DELETE", new Url
-                  {
-                    Path = "/interactions",
-                    Scheme = "http"
-                  }, null,  headers)
-            };
+            var context = GetRequestContext("DELETE", "/interactions", "http", null, null, headers);
 
             var handler = GetSubject();
 
@@ -74,14 +87,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 { Constants.AdministrativeRequestTestContextHeaderKey, new List<string> { testContext } }
             };
 
-            var context = new NancyContext
-            {
-                Request = new Request("DELETE", new Url
-                {
-                    Path = "/interactions",
-                    Scheme = "http"
-                }, null, headers)
-            };
+            var context = GetRequestContext("DELETE", "/interactions", "http", null, null, headers);
 
             var handler = GetSubject();
 
@@ -99,14 +105,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 { Constants.AdministrativeRequestTestContextHeaderKey, new List<string> { testContext } }
             };
 
-            var context = new NancyContext
-            {
-                Request = new Request("DELETE", new Url
-                {
-                    Path = "/interactions",
-                    Scheme = "http"
-                }, null, headers)
-            };
+            var context = GetRequestContext("DELETE", "/interactions", "http", null, null, headers);
 
             var handler = GetSubject();
 
@@ -120,10 +119,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
         [Fact]
         public void Handle_WithADeleteRequestToInteractions_ClearHandledRequestsIsCalledOnTheMockProviderRepository()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("DELETE", "/interactions", "http")
-            };
+            var context = GetRequestContext("DELETE", "/interactions", "http");
 
             var handler = GetSubject();
 
@@ -135,10 +131,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
         [Fact]
         public void Handle_WithADeleteRequestToInteractions_ClearTestScopedInteractionsIsCalledOnTheMockProviderRepository()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("DELETE", "/interactions", "http")
-            };
+            var context = GetRequestContext("DELETE", "/interactions", "http");
 
             var handler = GetSubject();
 
@@ -150,31 +143,25 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
         [Fact]
         public void Handle_WithADeleteRequestToInteractions_ReturnsOkResponse()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("DELETE", "/interactions", "http")
-            };
+            var context = GetRequestContext("DELETE", "/interactions", "http");
 
             var handler = GetSubject();
 
-            var response = handler.Handle(context);
+            handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
         public void Handle_WithALowercasedDeleteRequestToInteractions_ReturnsOkResponse()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("delete", "/interactions", "http")
-            };
+            var context = GetRequestContext("delete", "/interactions", "http");
 
             var handler = GetSubject();
 
             var response = handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
@@ -190,18 +177,15 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 },
                 Response = new ProviderServiceResponse
                 {
-                    Status = (int)HttpStatusCode.NoContent
+                    Status = StatusCodes.Status204NoContent
                 }
             };
             var interactionJson = interaction.AsJsonString();
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(interactionJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("POST", new Url("http://localhost/interactions"), requestStream)
-            };
+            //var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
+            var context = GetRequestContext("POST", "/interactions", "http", "localhost", jsonStream);
 
             var handler = GetSubject();
 
@@ -223,24 +207,21 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 },
                 Response = new ProviderServiceResponse
                 {
-                    Status = (int)HttpStatusCode.NoContent
+                    Status = StatusCodes.Status204NoContent
                 }
             };
             var interactionJson = interaction.AsJsonString();
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(interactionJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("POST", new Url("http://localhost/interactions"), requestStream)
-            };
+            //var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
+            var context = GetRequestContext("POST", "/interactions", "http", "localhost", jsonStream);
 
             var handler = GetSubject();
 
-            var response = handler.Handle(context);
+            handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
@@ -256,63 +237,51 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 },
                 Response = new ProviderServiceResponse
                 {
-                    Status = (int)HttpStatusCode.NoContent
+                    Status = StatusCodes.Status204NoContent
                 }
             };
             var interactionJson = interaction.AsJsonString();
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(interactionJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("post", new Url("http://localhost/interactions"), requestStream)
-            };
+            //var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
+            var context = GetRequestContext("post", "/interactions", "http", "localhost", jsonStream);
 
             var handler = GetSubject();
 
-            var response = handler.Handle(context);
+            handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
         public void Handle_WithAGetRequestToInteractionsVerification_ReturnsOkResponse()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
 
             var handler = GetSubject();
 
             var response = handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
         public void Handle_WithALowercasedGetRequestToInteractionsVerification_ReturnsOkResponse()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("get", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("get", "/interactions/verification", "http");
 
             var handler = GetSubject();
 
             var response = handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
         public void Handle_WithAGetRequestToInteractionsVerificationAndRegisteredInteractionWasCalledExactlyOnce_ReturnsOkResponse()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
 
             var interactions = new List<ProviderServiceInteraction>
             {
@@ -330,23 +299,20 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             var response = handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
         public void Handle_WithAGetRequestToInteractionsVerificationAndRegisteredInteractionWasNotCalled_ThrowsPactFailureExceptionAndLogsTheMissingRequest()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
 
             var handler = GetSubject();
 
 
             _mockProviderRepository.TestScopedInteractions.Returns(new List<ProviderServiceInteraction> { new ProviderServiceInteraction() });
 
-            Assert.Throws<PactFailureException>(() => handler.Handle(context));
+            Assert.ThrowsAsync<PactFailureException>(() => handler.Handle(context));
 
             _mockLog.Received().Log(LogLevel.Error, Arg.Any<Func<string>>(), null, Arg.Any<object[]>());
         }
@@ -354,10 +320,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
         [Fact]
         public void Handle_WithAGetRequestToInteractionsVerificationAndRegisteredInteractionWasCalledMultipleTimes_ThrowsPactFailureExceptionAndLogsTheError()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
 
             var interactions = new List<ProviderServiceInteraction>
             {
@@ -374,7 +337,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 new HandledRequest(new ProviderServiceRequest(), interactions.First())
             });
 
-            Assert.Throws<PactFailureException>(() => handler.Handle(context));
+            Assert.ThrowsAsync<PactFailureException>(() => handler.Handle(context));
 
             _mockLog.Received().Log(LogLevel.Error, Arg.Any<Func<string>>(), null, Arg.Any<object[]>());
         }
@@ -382,10 +345,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
         [Fact]
         public void Handle_WithAGetRequestToInteractionsVerificationAndNoInteractionsRegisteredHoweverMockProviderRecievedInteractions_ThrowsPactFailureException()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
 
             var handler = GetSubject();
 
@@ -394,20 +354,17 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 new HandledRequest(new ProviderServiceRequest(), new ProviderServiceInteraction())
             });
 
-            Assert.Throws<PactFailureException>(() => handler.Handle(context));
+            Assert.ThrowsAsync<PactFailureException>(() => handler.Handle(context));
         }
 
         [Fact]
         public void Handle_WithAGetRequestToInteractionsVerificationAndCorrectlyMatchedHandledRequest_ReturnsOkResponse()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
             var interaction = new ProviderServiceInteraction();
 
             var handler = GetSubject();
-            
+
 
             _mockProviderRepository.TestScopedInteractions.Returns(new List<ProviderServiceInteraction>
             {
@@ -421,16 +378,13 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             var response = handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
         public void Handle_WithAGetRequestToInteractionsVerificationAndAnIncorrectlyMatchedHandledRequest_ThrowsPactFailureException()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
 
             var handler = GetSubject();
 
@@ -439,17 +393,14 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                 new HandledRequest(new ProviderServiceRequest(), new ProviderServiceInteraction())
             });
 
-            Assert.Throws<PactFailureException>(() => handler.Handle(context));
+            Assert.ThrowsAsync<PactFailureException>(() => handler.Handle(context));
         }
 
         [Fact]
         public void Handle_WithAGetRequestToInteractionsVerificationAndAnInteractionWasSentButNotRegisteredByTheTest_ThrowsPactFailureExceptionWithTheCorrectMessageAndLogsTheUnexpectedRequest()
         {
             const string failure = "An unexpected request POST /tester was seen by the mock provider service.";
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
 
             var handler = GetSubject();
 
@@ -471,7 +422,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                     new HandledRequest(unExpectedRequest, null)
                 });
 
-            var exception = Assert.Throws<PactFailureException>(() => handler.Handle(context));
+            var exception = Assert.ThrowsAsync<PactFailureException>(() => handler.Handle(context)).Result;
 
             _mockLog.Received().Log(LogLevel.Error, Arg.Any<Func<string>>(), null, Arg.Any<object[]>());
             Assert.Equal(failure, exception.Message);
@@ -481,16 +432,13 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
         public void Handle_WithAGetRequestToInteractionsVerificationAndAFailureOcurrs_ThrowsPactFailureExceptionWithTheCorrectMessage()
         {
             const string failure = "The interaction with description '' and provider state '', was not used by the test. Missing request No Method No Path.";
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/interactions/verification", "http")
-            };
+            var context = GetRequestContext("GET", "/interactions/verification", "http");
 
             var handler = GetSubject();
 
             _mockProviderRepository.TestScopedInteractions.Returns(new List<ProviderServiceInteraction> { new ProviderServiceInteraction() });
 
-            var expection = Assert.Throws<PactFailureException>(() => handler.Handle(context));
+            var expection = Assert.ThrowsAsync<PactFailureException>(() => handler.Handle(context)).Result;
 
             Assert.Equal(failure, expection.Message);
         }
@@ -516,17 +464,13 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(pactDetailsJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("POST", new Url("http://localhost/pact"), requestStream)
-            };
+            var context = GetRequestContext("POST", "/pact", "http", "localhost", jsonStream);
 
             var handler = GetSubject();
 
             handler.Handle(context);
 
-            _mockFileSystem.File.Received(1).WriteAllText(Path.Combine(Constants.DefaultPactDir, pactDetails.GeneratePactFileName()), pactFileJson);
+            _mockFileAdapter.Received(1).WriteAllText(Path.Combine(Constants.DefaultPactDir, pactDetails.GeneratePactFileName()), pactFileJson);
         }
 
         [Fact]
@@ -550,7 +494,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                     },
                     Response = new ProviderServiceResponse
                     {
-                        Status = (int)HttpStatusCode.NoContent
+                        Status = StatusCodes.Status204NoContent
                     }
                 }
             };
@@ -567,11 +511,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(pactDetailsJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("POST", new Url("http://localhost/pact"), requestStream)
-            };
+            var context = GetRequestContext("POST", "/pact", "http", "localhost", jsonStream);
 
             var handler = GetSubject();
 
@@ -579,7 +519,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             handler.Handle(context);
 
-            _mockFileSystem.File.Received(1).WriteAllText(Path.Combine(Constants.DefaultPactDir, pactDetails.GeneratePactFileName()), pactFileJson);
+            _mockFileAdapter.Received(1).WriteAllText(Path.Combine(Constants.DefaultPactDir, pactDetails.GeneratePactFileName()), pactFileJson);
         }
 
         [Fact]
@@ -603,7 +543,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                     },
                     Response = new ProviderServiceResponse
                     {
-                        Status = (int)HttpStatusCode.NoContent
+                        Status = StatusCodes.Status204NoContent
                     }
                 }
             };
@@ -612,19 +552,15 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(pactDetailsJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("POST", new Url("http://localhost/pact"), requestStream)
-            };
+            var context = GetRequestContext("POST", "/pact", "http", "localhost", jsonStream);
 
             var handler = GetSubject();
 
             _mockProviderRepository.Interactions.Returns(interactions);
 
-            var response = handler.Handle(context);
+            handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         }
 
         [Fact]
@@ -648,7 +584,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                     },
                     Response = new ProviderServiceResponse
                     {
-                        Status = (int)HttpStatusCode.NoContent
+                        Status = StatusCodes.Status204NoContent
                     }
                 }
             };
@@ -665,20 +601,17 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(pactDetailsJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("POST", new Url("http://localhost/pact"), requestStream)
-            };
+            var context = GetRequestContext("POST", "/pact", "http", "localhost", jsonStream);
 
             var handler = GetSubject();
 
             _mockProviderRepository.Interactions.Returns(interactions);
 
-            var response = handler.Handle(context);
+            var task = handler.Handle(context);
+            task.Wait();
 
-            Assert.Equal("application/json", response.Headers["Content-Type"]);
-            Assert.Equal(pactFileJson, ReadResponseContent(response.Contents));
+            Assert.Equal("application/json", context.Response.Headers["Content-Type"]);
+            Assert.Equal(pactFileJson, ReadResponseContent(context.Response));
         }
 
         [Fact]
@@ -702,7 +635,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                     },
                     Response = new ProviderServiceResponse
                     {
-                        Status = (int)HttpStatusCode.NoContent
+                        Status = StatusCodes.Status204NoContent
                     }
                 }
             };
@@ -722,19 +655,15 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(pactDetailsJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("POST", new Url("http://localhost/pact"), requestStream)
-            };
+            var context = GetRequestContext("POST", "/pact", "http", "localhost", jsonStream);
 
             var handler = GetSubject(config);
 
             _mockProviderRepository.Interactions.Returns(interactions);
 
-            var response = handler.Handle(context);
+            handler.Handle(context);
 
-            _mockFileSystem.File.Received(1).WriteAllText(filePath, pactFileJson);
+            _mockFileAdapter.Received(1).WriteAllText(filePath, pactFileJson);
         }
 
         [Fact]
@@ -758,7 +687,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
                     },
                     Response = new ProviderServiceResponse
                     {
-                        Status = (int)HttpStatusCode.NoContent
+                        Status = StatusCodes.Status204NoContent
                     }
                 }
             };
@@ -775,11 +704,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(pactDetailsJson));
 
-            var requestStream = new RequestStream(jsonStream, jsonStream.Length, true);
-            var context = new NancyContext
-            {
-                Request = new Request("POST", new Url("http://localhost/pact"), requestStream)
-            };
+            var context = GetRequestContext("POST", "/pact", "http", "localhost", jsonStream);
 
             var filePath = Path.Combine(Constants.DefaultPactDir, pactDetails.GeneratePactFileName());
 
@@ -788,7 +713,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
             _mockProviderRepository.Interactions.Returns(interactions);
 
             var writeAllTextCount = 0;
-            _mockFileSystem.File
+            _mockFileAdapter
                 .When(x => x.WriteAllText(filePath, pactFileJson))
                 .Do(x =>
                 {
@@ -801,35 +726,28 @@ namespace PactNet.Tests.Mocks.MockHttpService.Nancy
 
             handler.Handle(context);
 
-            _mockFileSystem.File.Received(2).WriteAllText(filePath, pactFileJson);
+            _mockFileAdapter.Received(2).WriteAllText(filePath, pactFileJson);
         }
 
         [Fact]
         public void Handle_WhenNoMatchingAdminAction_ReturnsNotFoundResponse()
         {
-            var context = new NancyContext
-            {
-                Request = new Request("GET", "/tester/testing", "http")
-            };
+            var context = GetRequestContext("GET", "/tester/testing", "http");
 
             var handler = GetSubject();
 
-            var response = handler.Handle(context);
+            handler.Handle(context);
 
-            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Equal(StatusCodes.Status404NotFound, context.Response.StatusCode);
         }
 
-        private string ReadResponseContent(Response response)
+        private string ReadResponseContent(HttpResponse response)
         {
             string content;
-            using (var stream = new MemoryStream())
+            using (var reader = new StreamReader(response.Body))
             {
-                response.Contents(stream);
-                stream.Position = 0;
-                using (var reader = new StreamReader(stream))
-                {
-                    content = reader.ReadToEnd();
-                }
+                response.Body.Position = 0;
+                content = reader.ReadToEnd();
             }
 
             return content;

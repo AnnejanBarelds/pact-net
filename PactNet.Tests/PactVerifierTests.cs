@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.IO.Abstractions;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -13,6 +12,7 @@ using PactNet.Models;
 using PactNet.Tests.Fakes;
 using Xunit;
 using Xunit.Sdk;
+using Thinktecture.IO;
 
 namespace PactNet.Tests
 {
@@ -20,18 +20,18 @@ namespace PactNet.Tests
     {
         private Tuple<bool, IHttpRequestSender> _providerServiceValidatorFactoryCallInfo;
 
-        private IFileSystem _mockFileSystem;
+        private IFile _mockFileAdapter;
         private IProviderServiceValidator _mockProviderServiceValidator;
         private FakeHttpMessageHandler _fakeHttpMessageHandler;
 
         private IPactVerifier GetSubject()
         {
             _providerServiceValidatorFactoryCallInfo = null;
-            _mockFileSystem = Substitute.For<IFileSystem>();
+            _mockFileAdapter = Substitute.For<IFile>();
             _mockProviderServiceValidator = Substitute.For<IProviderServiceValidator>();
             _fakeHttpMessageHandler = new FakeHttpMessageHandler();
 
-            return new PactVerifier(() => {}, () => {}, _mockFileSystem, (httpRequestSender, reporter, config) =>
+            return new PactVerifier(() => {}, () => {}, _mockFileAdapter, (httpRequestSender, reporter, config) =>
             {
                 _providerServiceValidatorFactoryCallInfo = new Tuple<bool, IHttpRequestSender>(true, httpRequestSender);
                 
@@ -276,7 +276,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(pactUri).Returns(pactFileJson);
+            _mockFileAdapter.ReadAllText(pactUri).Returns(pactFileJson);
 
             pactVerifier
                 .ServiceProvider(serviceProvider, new HttpClient())
@@ -285,7 +285,7 @@ namespace PactNet.Tests
 
             pactVerifier.Verify();
 
-            _mockFileSystem.File.Received(1).ReadAllText(pactUri);
+            _mockFileAdapter.Received(1).ReadAllText(pactUri);
         }
 
         [Fact]
@@ -378,7 +378,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(pactUri).Returns(x => { throw new FileNotFoundException(); });
+            _mockFileAdapter.ReadAllText(pactUri).Returns(x => { throw new FileNotFoundException(); });
 
             pactVerifier
                 .ServiceProvider(serviceProvider, new HttpClient())
@@ -387,7 +387,7 @@ namespace PactNet.Tests
 
             Assert.Throws<InvalidOperationException>(() => pactVerifier.Verify());
 
-            _mockFileSystem.File.Received(1).ReadAllText(pactUri);
+            _mockFileAdapter.Received(1).ReadAllText(pactUri);
         }
 
         [Fact]
@@ -422,7 +422,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(pactUri).Returns(pactFileJson);
+            _mockFileAdapter.ReadAllText(pactUri).Returns(pactFileJson);
 
             pactVerifier
                 .ServiceProvider(serviceProvider, httpClient)
@@ -431,7 +431,7 @@ namespace PactNet.Tests
 
             pactVerifier.Verify();
 
-            _mockFileSystem.File.Received(1).ReadAllText(pactUri);
+            _mockFileAdapter.Received(1).ReadAllText(pactUri);
 
             _mockProviderServiceValidator.Received(1).Validate(Arg.Any<ProviderServicePactFile>(), Arg.Any<ProviderStates>());
         }
@@ -445,7 +445,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(pactUri).Returns(pactFileJson);
+            _mockFileAdapter.ReadAllText(pactUri).Returns(pactFileJson);
 
             pactVerifier
                 .ProviderState("My Provider State")
@@ -472,7 +472,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(pactUri).Returns(pactFileJson);
+            _mockFileAdapter.ReadAllText(pactUri).Returns(pactFileJson);
 
             pactVerifier
                 .ProviderState("My Provider State")
@@ -499,7 +499,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(pactUri).Returns(pactFileJson);
+            _mockFileAdapter.ReadAllText(pactUri).Returns(pactFileJson);
 
             pactVerifier
                 .ProviderState("My Provider State")
@@ -527,7 +527,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(pactUri).Returns(pactFileJson);
+            _mockFileAdapter.ReadAllText(pactUri).Returns(pactFileJson);
 
             pactVerifier
                 .ProviderState("My Provider State")
@@ -554,7 +554,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(pactUri).Returns(pactFileJson);
+            _mockFileAdapter.ReadAllText(pactUri).Returns(pactFileJson);
 
             pactVerifier
                 .ProviderState("My Provider State")
@@ -578,7 +578,7 @@ namespace PactNet.Tests
 
             var pactVerifier = GetSubject();
 
-            _mockFileSystem.File.ReadAllText(Arg.Any<string>()).Returns("{}");
+            _mockFileAdapter.ReadAllText(Arg.Any<string>()).Returns("{}");
 
             pactVerifier
                 .ProviderState("My Provider State")

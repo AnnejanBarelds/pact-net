@@ -1,40 +1,43 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Abstractions;
 using System.Linq;
 using System.Text;
-using Nancy;
+//using Nancy;
 using Newtonsoft.Json;
 using PactNet.Comparers;
 using PactNet.Configuration.Json;
 using PactNet.Logging;
 using PactNet.Mocks.MockHttpService.Models;
 using PactNet.Models;
+using Thinktecture.IO;
+using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
 
 namespace PactNet.Mocks.MockHttpService.Nancy
 {
     internal class MockProviderAdminRequestHandler : IMockProviderAdminRequestHandler
     {
         private readonly IMockProviderRepository _mockProviderRepository;
-        private readonly IFileSystem _fileSystem;
+        private readonly IFile _fileWrapper;
         private readonly PactConfig _pactConfig;
         private readonly ILog _log;
 
         public MockProviderAdminRequestHandler(
             IMockProviderRepository mockProviderRepository,
-            IFileSystem fileSystem,
+            IFile fileWrapper,
             PactConfig pactConfig,
             ILog log)
         {
             _mockProviderRepository = mockProviderRepository;
-            _fileSystem = fileSystem;
+            _fileWrapper = fileWrapper;
             _pactConfig = pactConfig;
             _log = log;
         }
 
-        public Response Handle(NancyContext context)
+        public async Task Handle(HttpContext context)
         {
+            Task task = null;
             //The first admin request with test context, we should log the context
             if (String.IsNullOrEmpty(_mockProviderRepository.TestContext) &&
                 context.Request.Headers != null &&
@@ -44,44 +47,49 @@ namespace PactNet.Mocks.MockHttpService.Nancy
                 _log.InfoFormat("Test context {0}", _mockProviderRepository.TestContext);
             }
 
-            if (context.Request.Method.Equals("DELETE", StringComparison.InvariantCultureIgnoreCase) &&
+            if (context.Request.Method.Equals("DELETE", StringComparison.OrdinalIgnoreCase) &&
                 context.Request.Path == Constants.InteractionsPath)
             {
-                return HandleDeleteInteractionsRequest();
+                task = HandleDeleteInteractionsRequest(context);
             }
 
-            if (context.Request.Method.Equals("POST", StringComparison.InvariantCultureIgnoreCase) &&
+            else if (context.Request.Method.Equals("POST", StringComparison.OrdinalIgnoreCase) &&
                 context.Request.Path == Constants.InteractionsPath)
             {
-                return HandlePostInteractionsRequest(context);
+                task = HandlePostInteractionsRequest(context);
             }
 
-            if (context.Request.Method.Equals("GET", StringComparison.InvariantCultureIgnoreCase) &&
+            else if (context.Request.Method.Equals("GET", StringComparison.OrdinalIgnoreCase) &&
                 context.Request.Path == Constants.InteractionsVerificationPath)
             {
-                return HandleGetInteractionsVerificationRequest();
+                task = HandleGetInteractionsVerificationRequest(context);
             }
 
-            if (context.Request.Method.Equals("POST", StringComparison.InvariantCultureIgnoreCase) &&
+            else if (context.Request.Method.Equals("POST", StringComparison.OrdinalIgnoreCase) &&
                 context.Request.Path == Constants.PactPath)
             {
-                return HandlePostPactRequest(context);
+                task = HandlePostPactRequest(context);
             }
 
-            return GenerateResponse(HttpStatusCode.NotFound,
-                String.Format("The {0} request for path {1}, does not have a matching mock provider admin action.", context.Request.Method, context.Request.Path));
+            else
+            {
+                task = GenerateResponse(context, StatusCodes.Status404NotFound,
+                  String.Format("The {0} request for path {1}, does not have a matching mock provider admin action.", context.Request.Method, context.Request.Path));
+            }
+
+            await task;
         }
 
-        private Response HandleDeleteInteractionsRequest()
+        private async Task HandleDeleteInteractionsRequest(HttpContext context)
         {
             _mockProviderRepository.ClearTestScopedState();
 
             _log.Info("Cleared interactions");
-            
-            return GenerateResponse(HttpStatusCode.OK, "Deleted interactions");
+
+            await GenerateResponse(context, StatusCodes.Status200OK, "Deleted interactions");
         }
 
-        private Response HandlePostInteractionsRequest(NancyContext context)
+        private async Task HandlePostInteractionsRequest(HttpContext context)
         {
             var interactionJson = ReadContent(context.Request.Body);
             var interaction = JsonConvert.DeserializeObject<ProviderServiceInteraction>(interactionJson);
@@ -90,10 +98,10 @@ namespace PactNet.Mocks.MockHttpService.Nancy
             _log.InfoFormat("Registered expected interaction {0} {1}", interaction.Request.Method.ToString().ToUpperInvariant(), interaction.Request.Path);
             _log.Debug(JsonConvert.SerializeObject(interaction, JsonConfig.PactFileSerializerSettings));
 
-            return GenerateResponse(HttpStatusCode.OK, "Added interaction");
+            await GenerateResponse(context, StatusCodes.Status200OK, "Added interaction");
         }
 
-        private Response HandleGetInteractionsVerificationRequest()
+        private async Task HandleGetInteractionsVerificationRequest(HttpContext context)
         {
             var registeredInteractions = _mockProviderRepository.TestScopedInteractions;
 
@@ -138,7 +146,8 @@ namespace PactNet.Mocks.MockHttpService.Nancy
             {
                 _log.Info("Verifying - interactions matched");
 
-                return GenerateResponse(HttpStatusCode.OK, "Interactions matched");
+                await GenerateResponse(context, StatusCodes.Status200OK, "Interactions matched");
+                return;
             }
 
             _log.Error("Verifying - actual interactions do not match expected interactions");
@@ -170,7 +179,7 @@ namespace PactNet.Mocks.MockHttpService.Nancy
             throw new PactFailureException(failure.Result);
         }
 
-        private Response HandlePostPactRequest(NancyContext context)
+        private async Task HandlePostPactRequest(HttpContext context)
         {
             var pactDetailsJson = ReadContent(context.Request.Body);
             var pactDetails = JsonConvert.DeserializeObject<PactDetails>(pactDetailsJson);
@@ -187,33 +196,33 @@ namespace PactNet.Mocks.MockHttpService.Nancy
 
             try
             {
-                _fileSystem.File.WriteAllText(pactFilePath, pactFileJson);
+                _fileWrapper.WriteAllText(pactFilePath, pactFileJson);
             }
             catch (DirectoryNotFoundException)
             {
-                _fileSystem.Directory.CreateDirectory(_pactConfig.PactDir);
-                _fileSystem.File.WriteAllText(pactFilePath, pactFileJson);
+                Directory.CreateDirectory(_pactConfig.PactDir);
+                _fileWrapper.WriteAllText(pactFilePath, pactFileJson);
             }
 
-            return GenerateResponse(HttpStatusCode.OK, pactFileJson, "application/json");
+            await GenerateResponse(context, StatusCodes.Status200OK, pactFileJson, "application/json");
         }
 
-        private Response GenerateResponse(HttpStatusCode statusCode, string message, string contentType = "text/plain")
+        private async Task GenerateResponse(HttpContext context, int statusCode, string message, string contentType = "text/plain")
         {
-            return new Response
-            {
-                StatusCode = statusCode,
-                Headers = new Dictionary<string, string> { { "Content-Type", contentType } },
-                Contents = s => SetContent(message, s)
-            };
+            context.Response.Clear();
+            context.Response.StatusCode = statusCode;
+
+            context.Response.ContentType = contentType;
+            
+            await context.Response.WriteAsync(message);
         }
 
-        private void SetContent(string content, Stream stream)
-        {
-            var contentBytes = Encoding.UTF8.GetBytes(content);
-            stream.Write(contentBytes, 0, contentBytes.Length);
-            stream.Flush();
-        }
+        //private void SetContent(string content, Stream stream)
+        //{
+        //    var contentBytes = Encoding.UTF8.GetBytes(content);
+        //    stream.Write(contentBytes, 0, contentBytes.Length);
+        //    stream.Flush();
+        //}
 
         private string ReadContent(Stream stream)
         {

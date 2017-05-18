@@ -13,7 +13,8 @@ using PactNet.Configuration.Json;
 using PactNet.Extensions;
 using PactNet.Mocks.MockHttpService.Mappers;
 using PactNet.Mocks.MockHttpService.Models;
-using PactNet.Mocks.MockHttpService.Nancy;
+using PactNet.Mocks.MockHttpService.Host;
+using System.Text.RegularExpressions;
 
 namespace PactNet.Mocks.MockHttpService
 {
@@ -46,7 +47,7 @@ namespace PactNet.Mocks.MockHttpService
 
         public MockProviderService(int port, bool enableSsl, string providerName, PactConfig config, bool bindOnAllAdapters = false)
             : this(
-            baseUri => new NancyHttpHost(baseUri, providerName, config, bindOnAllAdapters),
+            baseUri => new PactHttpHost(baseUri, providerName, config, bindOnAllAdapters),
             port,
             enableSsl,
             baseUri => new HttpClient { BaseAddress = new Uri(baseUri) },
@@ -225,36 +226,39 @@ namespace PactNet.Mocks.MockHttpService
 
         private static string BuildTestContext()
         {
-            // TODO: reimplement proper stacktrace cleaning once StackTrace and StackFrame are fully implemented in .NET Core.
-            // For now, a partial cleanup is provided below
+            var stacktrace = Environment.StackTrace;
+            var lines = stacktrace.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
 
-            //var stackFrames = stack.GetFrames() ?? new StackFrame[0];
+            string contextLine = null;
+            bool select = false;
+            foreach (var line in lines)
+            {
+                // Get the line representing the last stack frame before calling into Pact
+                if (line.Contains("PactNet."))
+                {
+                    select = true;
+                }
+                if (select)
+                {
+                    if (!line.Contains("PactNet.") || line.Contains("PactNet.Tests"))
+                    {
+                        contextLine = line;
+                        break;
+                    }
+                }
+            }
 
-            //var relevantStackFrameSummaries = new List<string>();
+            if (contextLine != null)
+            {
+                Regex pattern = new Regex(@"(?<class>\w+).(?<method>\w+)\(");
+                Match match = pattern.Match(contextLine);
+                string classname = match.Groups["class"].Value;
+                string methodname = match.Groups["method"].Value;
 
-            //foreach (var stackFrame in stackFrames)
-            //{
-            //    var type = stackFrame.GetMethod().ReflectedType;
+                return $"{classname}.{methodname}"; 
+            }
 
-            //    if (type == null || 
-            //        (type.GetTypeInfo().Assembly.GetName().Name.StartsWith("PactNet", StringComparison.CurrentCultureIgnoreCase) &&
-            //        !type.GetTypeInfo().Assembly.GetName().Name.Equals("PactNet.Tests", StringComparison.CurrentCultureIgnoreCase)))
-            //    {
-            //        continue;
-            //    }
-
-            //    // TODO: This will be different in NETStandard
-            //    //Don't care about any mscorlib frames down
-            //    if (type.AssemblyQualifiedName.Equals("mscorlib", StringComparison.CurrentCultureIgnoreCase))
-            //    {
-            //        break;
-            //    }
-
-            //    relevantStackFrameSummaries.Add(String.Format("{0}.{1}", type.Name, stackFrame.GetMethod().Name));
-            //}
-
-            //return String.Join(" ", relevantStackFrameSummaries);
-
+            // For some reason we don't have context; just return a placeholder
             return "TestContextPlaceholder";
         }
 

@@ -47,7 +47,6 @@
     <Compile Include="Comparers\ComparisonResultTests.cs" />
     <Compile Include="Fakes\FakeHttpMessageHandler.cs" />
     <Compile Include="IntegrationTests\FailureIntegrationTestsMyApiPact.cs" />
-    <Compile Include="IntegrationTests\IntegrationTestingMockProviderNancyBootstrapper.cs" />
     <Compile Include="IntegrationTests\IntegrationTestsMyApiPact.cs" />
     <Compile Include="IntegrationTests\PactBuilderFailureIntegrationTests.cs" />
     <Compile Include="IntegrationTests\PactBuilderIntegrationTests.cs" />
@@ -77,9 +76,9 @@
     <Compile Include="Mocks\MockHttpService\MockProviderRepositoryTests.cs" />
     <Compile Include="Mocks\MockHttpService\Models\ProviderServiceInteractionTests.cs" />
     <Compile Include="Mocks\MockHttpService\Models\ProviderServiceResponseTests.cs" />
-    <Compile Include="Mocks\MockHttpService\Nancy\MockProviderAdminRequestHandlerTests.cs" />
-    <Compile Include="Mocks\MockHttpService\Nancy\MockProviderRequestHandlerTests.cs" />
-    <Compile Include="Mocks\MockHttpService\Nancy\MockProviderNancyRequestDispatcherTests.cs" />
+    <Compile Include="Mocks\MockHttpService\Host\MockProviderAdminRequestHandlerTests.cs" />
+    <Compile Include="Mocks\MockHttpService\Host\MockProviderRequestHandlerTests.cs" />
+    <Compile Include="Mocks\MockHttpService\Host\MockProviderPactMiddlewareTests.cs" />
     <Compile Include="Mocks\MockHttpService\MockProviderServiceTests.cs" />
     <Compile Include="Mocks\MockHttpService\Models\ProviderServiceRequestTests.cs" />
     <Compile Include="Mocks\MockHttpService\Models\HttpBodyContentTests.cs" />

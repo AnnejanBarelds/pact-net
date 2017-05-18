@@ -2,7 +2,7 @@
 using System.Net.Http;
 using PactNet.Mocks.MockHttpService;
 using PactNet.Mocks.MockHttpService.Mappers;
-using PactNet.Mocks.MockHttpService.Nancy;
+using PactNet.Mocks.MockHttpService.Host;
 
 namespace PactNet.Tests.IntegrationTests
 {
@@ -20,7 +20,7 @@ namespace PactNet.Tests.IntegrationTests
 
             PactBuilder = new PactBuilder((port, enableSsl, providerName, bindOnAllAdapters) =>
                     new MockProviderService(
-                        baseUri => new NancyHttpHost(baseUri, "MyApi", pactConfig),
+                        baseUri => new PactHttpHost(baseUri, "MyApi", pactConfig),
                         port, enableSsl,
                         baseUri => new HttpClient { BaseAddress = new Uri(baseUri) },
                         new HttpMethodMapper()))

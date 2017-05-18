@@ -1,11 +1,11 @@
 namespace PactNet
 {
-    public class PactConfig
+    public class PactConfig: IPactConfig
     {
         public string PactDir { get; set; }
         public string LogDir { get; set; }
 
-        internal string LoggerName;
+        string IPactConfig.LoggerName { get; set; }
 
         public PactConfig()
         {

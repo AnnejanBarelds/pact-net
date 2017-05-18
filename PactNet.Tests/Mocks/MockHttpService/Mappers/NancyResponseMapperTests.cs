@@ -1,176 +1,163 @@
-﻿//using System.Collections.Generic;
-//using System.IO;
-//using System.Linq;
-//using System.Net.Http.Headers;
-//using System.Text;
-//using NSubstitute;
-//using PactNet.Mocks.MockHttpService.Mappers;
-//using PactNet.Mocks.MockHttpService.Models;
-//using Xunit;
-//using Microsoft.AspNetCore.Http;
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http.Headers;
+using System.Text;
+using NSubstitute;
+using PactNet.Mocks.MockHttpService.Mappers;
+using PactNet.Mocks.MockHttpService.Models;
+using Xunit;
+using Microsoft.AspNetCore.Http;
 
-//namespace PactNet.Tests.Mocks.MockHttpService.Mappers
-//{
-//    public class NancyResponseMapperTests
-//    {
-//        private INancyResponseMapper GetSubject()
-//        {
-//            return new NancyResponseMapper();
-//        }
+namespace PactNet.Tests.Mocks.MockHttpService.Mappers
+{
+    public class HttpResponseMapperTests
+    {
+        private IHttpResponseMapper GetSubject()
+        {
+            return new HttpResponseMapper();
+        }
 
-//        [Fact]
-//        public void Convert_WithNullResponse_ReturnsNull()
-//        {
-//            var mapper = GetSubject();
+        [Fact]
+        public void Convert_WithResponseWithStatusCode_ReturnsHttpResponseWithStatusCode()
+        {
+            var response = new ProviderServiceResponse
+            {
+                Status = 200
+            };
 
-//            var result = mapper.Convert(null, null);
+            var context = new DefaultHttpContext();
+            context.Response.StatusCode = StatusCodes.Status418ImATeapot;
 
-//            Assert.Null(result);
-//        }
+            var mapper = GetSubject();
 
-//        [Fact]
-//        public void Convert_WithResponseWithStatusCode_ReturnsNancyResponseWithStatusCode()
-//        {
-//            var response = new ProviderServiceResponse
-//            {
-//                Status = 200
-//            };
+            var result = mapper.Convert(context, response);
 
-//            var context = new DefaultHttpContext();
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        }
 
-//            var mapper = GetSubject();
+        [Fact]
+        public void Convert_WithResponseThatHasANullBodyAndACustomHeader_ReturnsHttpResponseWithHeaderAndDoesNotAddAContentLengthHeader()
+        {
+            var response = new ProviderServiceResponse
+            {
+                Status = 200,
+                Headers = new Dictionary<string, string>
+                {
+                    { "X-Test", "Tester" }
+                }
+            };
+            var context = new DefaultHttpContext();
 
-//            var result = mapper.Convert(context, response);
+            var mapper = GetSubject();
+            
+            var result = mapper.Convert(context, response);
 
-//            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-//        }
+            Assert.Equal(response.Headers.First().Key, context.Response.Headers.First().Key);
+            Assert.Equal(response.Headers.First().Value, context.Response.Headers.First().Value);
+            Assert.Equal(1, context.Response.Headers.Count());
+        }
 
-//        [Fact]
-//        public void Convert_WithResponseThatHasANullBodyAndACustomHeader_ReturnsNancyResponseWithHeaderAndDoesNotAddAContentLengthHeader()
-//        {
-//            var response = new ProviderServiceResponse
-//            {
-//                Status = 200,
-//                Headers = new Dictionary<string, string>
-//                {
-//                    { "X-Test", "Tester" }
-//                }
-//            };
+        [Fact]
+        public void Convert_WithResponseThatHasANullBodyAndAContentLengthHeader_ReturnsHttpResponseWithNullBodyAndContentLengthHeader()
+        {
+            var response = new ProviderServiceResponse
+            {
+                Status = 200,
+                Headers = new Dictionary<string, string>
+                {
+                    { "Content-Length", "100" }
+                }
+            };
+            var context = new DefaultHttpContext();
+            var mapper = GetSubject();
 
-//            var mapper = GetSubject();
+            var result = mapper.Convert(context, response);
 
-//            var result = mapper.Convert(response);
+            Assert.Equal(0, context.Response.Body.Length);
+            Assert.Equal("Content-Length", context.Response.Headers.Last().Key);
+            Assert.Equal("100", context.Response.Headers.Last().Value);
+        }
 
-//            Assert.Equal(response.Headers.First().Key, result.Headers.First().Key);
-//            Assert.Equal(response.Headers.First().Value, result.Headers.First().Value);
-//            Assert.Equal(1, result.Headers.Count());
-//        }
+        [Fact]
+        public void Convert_WithPlainTextBody_CallsConvertOnHttpBodyContentMapperAndAssignsContents()
+        {
+            const string contentTypeString = "text/plain";
+            var response = new ProviderServiceResponse
+            {
+                Status = 200,
+                Headers = new Dictionary<string, string>
+                {
+                    { "Content-Type", contentTypeString }
+                },
+                Body = "This is a plain body"
+            };
+            var context = new DefaultHttpContext();
+            context.Response.Body = new MemoryStream();
 
-//        [Fact]
-//        public void Convert_WithResponseThatHasANullBodyAndAContentLengthHeader_ReturnsNancyResponseWithNullBodyAndContentLengthHeader()
-//        {
-//            var response = new ProviderServiceResponse
-//            {
-//                Status = 200,
-//                Headers = new Dictionary<string, string>
-//                {
-//                    { "Content-Length", "100" }
-//                }
-//            };
+            var httpBodyContent = new HttpBodyContent(body: response.Body, contentType: new MediaTypeHeaderValue(contentTypeString) { CharSet = "utf-8" });
 
-//            var mapper = GetSubject();
+            var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
 
-//            var result = mapper.Convert(response);
+            mockHttpBodyContentMapper.Convert(body: Arg.Any<object>(), headers: response.Headers)
+                .Returns(httpBodyContent);
 
-//            var stream = new MemoryStream();
-//            result.Contents(stream);
-//            Assert.Equal(0, stream.Length);
-//            Assert.Equal("Content-Length", result.Headers.Last().Key);
-//            Assert.Equal("100", result.Headers.Last().Value);
-//            stream.Dispose();
-//        }
+            var mapper = new HttpResponseMapper(mockHttpBodyContentMapper);
 
-//        [Fact]
-//        public void Convert_WithPlainTextBody_CallsConvertOnHttpBodyContentMapperAndAssignsContents()
-//        {
-//            const string contentTypeString = "text/plain";
-//            var response = new ProviderServiceResponse
-//            {
-//                Status = 200,
-//                Headers = new Dictionary<string, string>
-//                {
-//                    { "Content-Type", contentTypeString }
-//                },
-//                Body = "This is a plain body"
-//            };
-//            var httpBodyContent = new HttpBodyContent(body: response.Body, contentType: new MediaTypeHeaderValue(contentTypeString) { CharSet = "utf-8" });
+            var result = mapper.Convert(context, response);
 
-//            var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
+            string content;
 
-//            mockHttpBodyContentMapper.Convert(body: Arg.Any<object>(), headers: response.Headers)
-//                .Returns(httpBodyContent);
+            context.Response.Body.Position = 0;
+            using (var reader = new StreamReader(context.Response.Body))
+            {
+                content = reader.ReadToEnd();
+            }
+            
+            Assert.Equal(response.Body, content);
+            mockHttpBodyContentMapper.Received(1).Convert(body: Arg.Any<object>(), headers: response.Headers);
+        }
 
-//            var mapper = new NancyResponseMapper(mockHttpBodyContentMapper);
+        [Fact]
+        public void Convert_WithJsonBody_CallsConvertOnHttpBodyContentMapperAndAssignsContents()
+        {
+            const string contentTypeString = "application/json";
+            var response = new ProviderServiceResponse
+            {
+                Status = 200,
+                Headers = new Dictionary<string, string>
+                {
+                    { "Content-Type", contentTypeString }
+                },
+                Body = new
+                {
+                    Test = "tester",
+                    Test2 = 1
+                }
+            };
+            var context = new DefaultHttpContext();
+            context.Response.Body = new MemoryStream();
+            var jsonBody = "{\"Test\":\"tester\",\"Test2\":1}";
+            var httpBodyContent = new HttpBodyContent(content: Encoding.UTF8.GetBytes(jsonBody), contentType: new MediaTypeHeaderValue(contentTypeString) { CharSet = "utf-8" });
 
-//            var result = mapper.Convert(response);
+            var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
 
-//            string content;
-//            using (var stream = new MemoryStream())
-//            {
-//                result.Contents(stream);
-//                stream.Position = 0;
-//                using (var reader = new StreamReader(stream))
-//                {
-//                    content = reader.ReadToEnd();
-//                }
-//            }
+            mockHttpBodyContentMapper.Convert(body: Arg.Any<object>(), headers: response.Headers)
+                .Returns(httpBodyContent);
 
-//            Assert.Equal(response.Body, content);
-//            mockHttpBodyContentMapper.Received(1).Convert(body: Arg.Any<object>(), headers: response.Headers);
-//        }
+            var mapper = new HttpResponseMapper(mockHttpBodyContentMapper);
 
-//        [Fact]
-//        public void Convert_WithJsonBody_CallsConvertOnHttpBodyContentMapperAndAssignsContents()
-//        {
-//            const string contentTypeString = "application/json";
-//            var response = new ProviderServiceResponse
-//            {
-//                Status = 200,
-//                Headers = new Dictionary<string, string>
-//                {
-//                    { "Content-Type", contentTypeString }
-//                },
-//                Body = new
-//                {
-//                    Test = "tester",
-//                    Test2 = 1
-//                }
-//            };
-//            var jsonBody = "{\"Test\":\"tester\",\"Test2\":1}";
-//            var httpBodyContent = new HttpBodyContent(content: Encoding.UTF8.GetBytes(jsonBody), contentType: new MediaTypeHeaderValue(contentTypeString) { CharSet = "utf-8" });
+            var result = mapper.Convert(context, response);
 
-//            var mockHttpBodyContentMapper = Substitute.For<IHttpBodyContentMapper>();
+            string content;
+            context.Response.Body.Position = 0;
+            using (var reader = new StreamReader(context.Response.Body))
+            {
+                content = reader.ReadToEnd();
+            }
 
-//            mockHttpBodyContentMapper.Convert(body: Arg.Any<object>(), headers: response.Headers)
-//                .Returns(httpBodyContent);
-
-//            var mapper = new NancyResponseMapper(mockHttpBodyContentMapper);
-
-//            var result = mapper.Convert(response);
-
-//            string content;
-//            using (var stream = new MemoryStream())
-//            {
-//                result.Contents(stream);
-//                stream.Position = 0;
-//                using (var reader = new StreamReader(stream))
-//                {
-//                    content = reader.ReadToEnd();
-//                }
-//            }
-
-//            Assert.Equal(jsonBody, content);
-//            mockHttpBodyContentMapper.Received(1).Convert(body: Arg.Any<object>(), headers: response.Headers);
-//        }
-//    }
-//}
+            Assert.Equal(jsonBody, content);
+            mockHttpBodyContentMapper.Received(1).Convert(body: Arg.Any<object>(), headers: response.Headers);
+        }
+    }
+}

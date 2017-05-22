@@ -9,12 +9,12 @@ using Xunit;
 
 namespace Consumer.Tests
 {
-    public class EventsApiConsumerTests : IUseFixture<ConsumerEventApiPact>
+    public class EventsApiConsumerTests : IClassFixture<ConsumerEventApiPact>
     {
         private IMockProviderService _mockProviderService;
         private string _mockProviderServiceBaseUri;
             
-        public void SetFixture(ConsumerEventApiPact data)
+        public EventsApiConsumerTests(ConsumerEventApiPact data)
         {
             _mockProviderService = data.MockProviderService;
             _mockProviderServiceBaseUri = data.MockProviderServiceBaseUri;
@@ -43,7 +43,7 @@ namespace Consumer.Tests
                     {
                         { "Content-Type", "application/json; charset=utf-8" }
                     },
-                    Body = new 
+                    Body = new
                     {
                         message = "Authorization has been denied for this request."
                     }
@@ -53,7 +53,7 @@ namespace Consumer.Tests
 
             //Act //Assert
             Assert.Throws<HttpRequestException>(() => consumer.GetAllEvents());
-            
+
             _mockProviderService.VerifyInteractions();
         }
 

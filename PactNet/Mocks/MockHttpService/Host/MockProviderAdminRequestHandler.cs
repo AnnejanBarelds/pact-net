@@ -11,6 +11,7 @@ using PactNet.Models;
 using Thinktecture.IO;
 using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace PactNet.Mocks.MockHttpService.Host
 {

@@ -31,12 +31,17 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             context.Request.Path = path;
             context.Request.Protocol = protocol;
             context.Request.Body = body;
+            if (body != null)
+            {
+                context.Request.ContentLength = body.Length;
+            }
             if (headers != null)
             {
                 headers.ToList().ForEach(header => context.Request.Headers.Add(header.Key, new Microsoft.Extensions.Primitives.StringValues(header.Value.ToArray())));
             }
 
             context.Response.Body = new MemoryStream();
+            
             return context;
         }
 

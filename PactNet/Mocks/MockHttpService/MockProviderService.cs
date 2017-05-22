@@ -234,10 +234,6 @@ namespace PactNet.Mocks.MockHttpService
             foreach (var line in lines)
             {
                 // Get the line representing the last stack frame before calling into Pact
-                if (line.Contains("PactNet."))
-                {
-                    select = true;
-                }
                 if (select)
                 {
                     if (!line.Contains("PactNet.") || line.Contains("PactNet.Tests"))
@@ -245,6 +241,10 @@ namespace PactNet.Mocks.MockHttpService
                         contextLine = line;
                         break;
                     }
+                }
+                else if (line.Contains("PactNet."))
+                {
+                    select = true;
                 }
             }
 

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using PactNet.Mocks.MockHttpService.Models;
 using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
 
 namespace PactNet.Mocks.MockHttpService.Mappers
 {
@@ -47,12 +48,12 @@ namespace PactNet.Mocks.MockHttpService.Mappers
                 to.Headers = fromHeaders;
             }
 
-            if (from.Body != null)
+            if (from.Body != null && from.ContentLength.GetValueOrDefault(0) != 0)
             {
-                var streamBytes = ConvertStreamToBytes(from.Body);
+                var streamBytes = ConvertStreamToBytes(from.ContentLength.Value, from.Body);
                 if (streamBytes.Length > 0)
                 {
-                    var httpBodyContent = _httpBodyContentMapper.Convert(content: ConvertStreamToBytes(from.Body), headers: to.Headers);
+                    var httpBodyContent = _httpBodyContentMapper.Convert(content: streamBytes, headers: to.Headers);
 
                     to.Body = httpBodyContent.Body;
                 }
@@ -61,13 +62,11 @@ namespace PactNet.Mocks.MockHttpService.Mappers
             return to;
         }
 
-        private static byte[] ConvertStreamToBytes(Stream content)
+        private static byte[] ConvertStreamToBytes(long length, Stream content)
         {
-            using (var memoryStream = new MemoryStream())
-            {
-                content.CopyTo(memoryStream);
-                return memoryStream.ToArray();
-            }
+            byte[] buffer = new byte[length];
+            content.Read(buffer, 0, (int)length);
+            return buffer;
         }
     }
 }

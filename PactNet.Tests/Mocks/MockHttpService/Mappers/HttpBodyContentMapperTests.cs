@@ -19,7 +19,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
         {
             var mapper = GetSubject();
 
-            var result = mapper.Convert(body: null, headers: null);
+            var result = mapper.Convert(new DynamicBodyMapRequest { Body = null, Headers = null });
 
             Assert.Null(result);
         }
@@ -30,7 +30,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             const string body = "This is my content";
             var mapper = GetSubject();
 
-            var result = mapper.Convert(body: body, headers: null);
+            var result = mapper.Convert(new DynamicBodyMapRequest { Body = body, Headers = null });
 
             Assert.Equal(body, result.Content);
             Assert.Equal(Encoding.UTF8, result.Encoding);
@@ -53,7 +53,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             const string jsonBody = "{\"Test\":\"tester\",\"Test2\":1}";
             var mapper = GetSubject();
 
-            var result = mapper.Convert(body: body, headers: headers);
+            var result = mapper.Convert(new DynamicBodyMapRequest { Body = body, Headers = headers });
 
             Assert.Equal(jsonBody, result.Content);
             Assert.Equal(Encoding.UTF8, result.Encoding);
@@ -75,7 +75,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             const string jsonBody = "{\"Test\":\"testeR\",\"tesT2\":1}";
             var mapper = GetSubject();
 
-            var result = mapper.Convert(body: body, headers: headers);
+            var result = mapper.Convert(new DynamicBodyMapRequest { Body = body, Headers = headers });
 
             Assert.Equal(jsonBody, result.Content);
             Assert.Equal(Encoding.UTF8, result.Encoding);
@@ -97,7 +97,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 
             var mapper = GetSubject();
 
-            var result = mapper.Convert(body: body, headers: headers);
+            var result = mapper.Convert(new DynamicBodyMapRequest { Body = body, Headers = headers });
             
             Assert.Equal(encoding, result.Encoding);
             Assert.Equal(body, result.Content);
@@ -122,7 +122,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 
             var mapper = GetSubject();
 
-            var result = mapper.Convert(body: body, headers: headers);
+            var result = mapper.Convert(new DynamicBodyMapRequest { Body = body, Headers = headers });
 
             Assert.Equal(encoding, result.Encoding);
             Assert.Equal(body, result.Content);
@@ -136,7 +136,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
         {
             var mapper = GetSubject();
 
-            var result = mapper.Convert(content: null, headers: null);
+            var result = mapper.Convert(new BinaryContentMapRequest { Content = null, Headers = null });
 
             Assert.Null(result);
         }
@@ -147,7 +147,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             const string content = "This is my content";
             var mapper = GetSubject();
 
-            var result = mapper.Convert(content: Encoding.UTF8.GetBytes(content), headers: null);
+            var result = mapper.Convert(new BinaryContentMapRequest { Content = Encoding.UTF8.GetBytes(content), Headers = null });
 
             Assert.Equal(content, result.Content);
             Assert.Equal(Encoding.UTF8, result.Encoding);
@@ -169,7 +169,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
             const string content = "{\"Test\":\"testeR\",\"tesT2\":1}";
             var mapper = GetSubject();
 
-            var result = mapper.Convert(content: Encoding.UTF8.GetBytes(content), headers: headers);
+            var result = mapper.Convert(new BinaryContentMapRequest { Content = Encoding.UTF8.GetBytes(content), Headers = headers });
 
             Assert.Equal(body.Test, (string)result.Body.Test);
             Assert.Equal(body.tesT2, (int)result.Body.tesT2);
@@ -192,8 +192,8 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 
             var mapper = GetSubject();
 
-            var result = mapper.Convert(body: encoding.GetBytes(content), headers: headers);
-            
+            var result = mapper.Convert(new BinaryContentMapRequest { Content = encoding.GetBytes(content), Headers = headers });
+
             Assert.Equal(encoding, result.Encoding);
             Assert.Equal(content, result.Content);
             Assert.Equal(contentTypeString, result.ContentType.MediaType);
@@ -217,8 +217,8 @@ namespace PactNet.Tests.Mocks.MockHttpService.Mappers
 
             var mapper = GetSubject();
 
-            var result = mapper.Convert(body: encoding.GetBytes(content), headers: headers);
-            
+            var result = mapper.Convert(new BinaryContentMapRequest { Content = encoding.GetBytes(content), Headers = headers });
+
             Assert.Equal(encoding, result.Encoding);
             Assert.Equal(encoding.GetString(encoding.GetBytes(content)), result.Content);
             Assert.Equal(contentTypeString, result.ContentType.MediaType);

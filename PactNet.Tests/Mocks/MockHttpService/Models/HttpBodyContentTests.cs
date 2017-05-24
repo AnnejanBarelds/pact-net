@@ -11,37 +11,37 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
         [Fact]
         public void Ctor1_WithNullBody_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new HttpBodyContent(body: null, contentType: new MediaTypeHeaderValue("text/plain") { CharSet = "utf-8" }));
+            Assert.Throws<ArgumentException>(() => new HttpBodyContent(new DynamicBody { Body = null, ContentType = new MediaTypeHeaderValue("text/plain") { CharSet = "utf-8" } }));
         }
 
         [Fact]
         public void Ctor2_WithNullContent_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new HttpBodyContent(content: null, contentType: new MediaTypeHeaderValue("text/plain") { CharSet = "utf-8" }));
+            Assert.Throws<ArgumentException>(() => new HttpBodyContent(new BinaryContent { Content = null, ContentType = new MediaTypeHeaderValue("text/plain") { CharSet = "utf-8" } }));
         }
 
         [Fact]
         public void Ctor1_WithNullContentType_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new HttpBodyContent(body: new { }, contentType: null));
+            Assert.Throws<ArgumentException>(() => new HttpBodyContent(new DynamicBody { Body = new { }, ContentType = null }));
         }
 
         [Fact]
         public void Ctor2_WithNullContentType_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new HttpBodyContent(content: new byte[] { }, contentType: null));
+            Assert.Throws<ArgumentException>(() => new HttpBodyContent(new BinaryContent { Content = new byte[] { }, ContentType = null }));
         }
 
         [Fact]
         public void Ctor1_WithContentTypeAndMissingCharSet_ThrowsArgumentNullException()
         {
-            Assert.Throws<InvalidOperationException>(() => new HttpBodyContent(body: new { }, contentType: new MediaTypeHeaderValue("text/plain")));
+            Assert.Throws<InvalidOperationException>(() => new HttpBodyContent(new DynamicBody { Body = new { }, ContentType = new MediaTypeHeaderValue("text/plain") }));
         }
 
         [Fact]
         public void Ctor2_WithContentTypeAndMissingCharSet_ThrowsArgumentNullException()
         {
-            Assert.Throws<InvalidOperationException>(() => new HttpBodyContent(content: new byte[] { }, contentType: new MediaTypeHeaderValue("text/plain")));
+            Assert.Throws<InvalidOperationException>(() => new HttpBodyContent(new BinaryContent { Content = new byte[] { }, ContentType = new MediaTypeHeaderValue("text/plain") }));
         }
 
         [Fact]
@@ -53,9 +53,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
             const string charSet = "utf-16";
             const string body = "<html/>";
 
-            var httpBodyContent = new HttpBodyContent(
-                body: body,
-                contentType: new MediaTypeHeaderValue(contentType) { CharSet = charSet, Parameters = { new NameValueHeaderValue(parameterName, parameterValue) } });
+            var httpBodyContent = new HttpBodyContent(new DynamicBody { Body = body, ContentType = new MediaTypeHeaderValue(contentType) { CharSet = charSet, Parameters = { new NameValueHeaderValue(parameterName, parameterValue) } } });
 
             Assert.Equal(body, httpBodyContent.Content);
             Assert.Equal(contentType, httpBodyContent.ContentType.MediaType);
@@ -74,10 +72,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
             const string content = "<html/>";
             byte[] body = Encoding.Unicode.GetBytes(content);
 
-            var httpBodyContent = new HttpBodyContent(
-                content: body,
-                contentType: new MediaTypeHeaderValue(contentType) { CharSet = charSet, Parameters = { new NameValueHeaderValue(parameterName, parameterValue) } });
-
+            var httpBodyContent = new HttpBodyContent(new BinaryContent { Content = body, ContentType = new MediaTypeHeaderValue(contentType) { CharSet = charSet, Parameters = { new NameValueHeaderValue(parameterName, parameterValue) } } });
             Assert.Equal(content, httpBodyContent.Content);
             Assert.Equal(contentType, httpBodyContent.ContentType.MediaType);
             Assert.Contains(new NameValueHeaderValue(parameterName, parameterValue), httpBodyContent.ContentType.Parameters);
@@ -94,7 +89,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
                 tesTer = 1
             };
             const string content = "{\"Test\":\"tester\",\"tesTer\":1}";
-            var httpBodyContent = new HttpBodyContent(body: body, contentType: new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new DynamicBody { Body = body, ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" } });
 
             Assert.Equal(content, httpBodyContent.Content);
             Assert.Equal(body, httpBodyContent.Body);
@@ -109,7 +104,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
                 tesTer = 1
             };
             const string content = "{\"Test\":\"tester\",\"tesTer\":1}";
-            var httpBodyContent = new HttpBodyContent(body: body, contentType: new MediaTypeHeaderValue("Application/Json") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new DynamicBody { Body = body, ContentType = new MediaTypeHeaderValue("Application/Json") { CharSet = "utf-8" } });
 
             Assert.Equal(content, httpBodyContent.Content);
             Assert.Equal(body, httpBodyContent.Body);
@@ -124,7 +119,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
                 tesTer = 1
             };
             const string content = "{\"Test\":\"tester\",\"tesTer\":1}";
-            var httpBodyContent = new HttpBodyContent(body: body, contentType: new MediaTypeHeaderValue("application/x-amz-json-1.1") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new DynamicBody { Body = body, ContentType = new MediaTypeHeaderValue("application/x-amz-json-1.1") { CharSet = "utf-8" } });
 
             Assert.Equal(content, httpBodyContent.Content);
             Assert.Equal(body, httpBodyContent.Body);
@@ -139,7 +134,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
                 tesTer = 1
             };
             const string content = "{\"Test\":\"tester\",\"tesTer\":1}";
-            var httpBodyContent = new HttpBodyContent(content: Encoding.UTF8.GetBytes(content), contentType: new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new BinaryContent { Content = Encoding.UTF8.GetBytes(content), ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" } });
 
             Assert.Equal(content, httpBodyContent.Content);
             Assert.Equal(body.Test, (string)httpBodyContent.Body.Test);
@@ -155,7 +150,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
                 tesTer = 1
             };
             const string content = "{\"Test\":\"tester\",\"tesTer\":1}";
-            var httpBodyContent = new HttpBodyContent(content: Encoding.UTF8.GetBytes(content), contentType: new MediaTypeHeaderValue("application/x-amz-json-1.1") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new BinaryContent { Content = Encoding.UTF8.GetBytes(content), ContentType = new MediaTypeHeaderValue("application/x-amz-json-1.1") { CharSet = "utf-8" } });
 
             Assert.Equal(content, httpBodyContent.Content);
             Assert.Equal(body.Test, (string)httpBodyContent.Body.Test);
@@ -166,7 +161,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
         public void Ctor1_WithPlainTextBody_SetsBodyAndContent()
         {
             const string body = "Some plain text";
-            var httpBodyContent = new HttpBodyContent(body: body, contentType: new MediaTypeHeaderValue("application/plain") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new DynamicBody { Body = body, ContentType = new MediaTypeHeaderValue("application/plain") { CharSet = "utf-8" } });
 
             Assert.Equal(body, httpBodyContent.Content);
             Assert.Equal(body, httpBodyContent.Body);
@@ -176,7 +171,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
         public void Ctor2_WithPlainTextContent_SetsBodyAndContent()
         {
             const string content = "Some plain text";
-            var httpBodyContent = new HttpBodyContent(content: Encoding.UTF8.GetBytes(content), contentType: new MediaTypeHeaderValue("application/plain") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new BinaryContent { Content = Encoding.UTF8.GetBytes(content), ContentType = new MediaTypeHeaderValue("application/plain") { CharSet = "utf-8" } });
 
             Assert.Equal(content, httpBodyContent.Content);
             Assert.Equal(content, httpBodyContent.Body);
@@ -187,7 +182,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
         {
             var body = new byte[] { 1, 2, 3 };
 
-            var httpBodyContent = new HttpBodyContent(body: body, contentType: new MediaTypeHeaderValue("application/octet-stream") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new DynamicBody { Body = body, ContentType = new MediaTypeHeaderValue("application/octet-stream") { CharSet = "utf-8" } });
 
             Assert.Equal(body, httpBodyContent.Body);
             Assert.Equal(Convert.ToBase64String(body), httpBodyContent.Content);
@@ -199,7 +194,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
             var body = new byte[] { 1, 2, 3 };
             var base64Body = Convert.ToBase64String(body);
 
-            var httpBodyContent = new HttpBodyContent(body: base64Body, contentType: new MediaTypeHeaderValue("application/octet-stream") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new DynamicBody { Body = base64Body, ContentType = new MediaTypeHeaderValue("application/octet-stream") { CharSet = "utf-8" } });
 
             Assert.Equal(base64Body, httpBodyContent.Body as string);
             Assert.Equal(Encoding.UTF8.GetString(body), httpBodyContent.Content);
@@ -210,7 +205,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
         {
             const string content = "LOL";
             var contentBytes = Encoding.UTF8.GetBytes(content);
-            var httpBodyContent = new HttpBodyContent(content: contentBytes, contentType: new MediaTypeHeaderValue("application/octet-stream") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new BinaryContent { Content = contentBytes, ContentType = new MediaTypeHeaderValue("application/octet-stream") { CharSet = "utf-8" } });
 
             Assert.Equal(content, httpBodyContent.Content);
             Assert.IsType<string>(httpBodyContent.Body);
@@ -220,7 +215,7 @@ namespace PactNet.Tests.Mocks.MockHttpService.Models
         [Fact]
         public void Ctor2_WithEmptyContent_ReturnsEmptyUtf8ByteArray()
         {
-            var httpBodyContent = new HttpBodyContent(content: Encoding.UTF8.GetBytes(String.Empty), contentType: new MediaTypeHeaderValue("text/plain") { CharSet = "utf-8" });
+            var httpBodyContent = new HttpBodyContent(new BinaryContent { Content = Encoding.UTF8.GetBytes(String.Empty), ContentType = new MediaTypeHeaderValue("text/plain") { CharSet = "utf-8" } });
 
             Assert.Empty(httpBodyContent.ContentBytes);
         }
